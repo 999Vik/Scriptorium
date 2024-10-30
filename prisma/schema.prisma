@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id       Int      @id @default(autoincrement())
+  email    String   @unique
+  name     String?
+  posts    Post[]
+  profile  Profile?
+}
+
+model BlogPost {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String
+  content     String
+  tags        Tag[]      @relation("BlogPostTags", references: [id])
+  author      User       @relation(fields: [authorId], references: [id])
+  authorId    Int
+  reports     Report[]
+  comments    Comment[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Tag {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  blogPosts BlogPost[] @relation("BlogPostTags", references: [id])
+}
+
+model Report {
+  id          Int        @id @default(autoincrement())
+  reason      String
+  description String?
+  reporter    User       @relation(fields: [reporterId], references: [id])
+  reporterId  Int
+  blogPost    BlogPost?  @relation(fields: [blogPostId], references: [id])
+  blogPostId  Int?
+  comment     Comment?   @relation(fields: [commentId], references: [id])
+  commentId   Int?
+  createdAt   DateTime   @default(now())
+
+  @@check(
+    (blogPostId != null AND commentId == null) OR 
+    (blogPostId == null AND commentId != null)
+  )
+}
