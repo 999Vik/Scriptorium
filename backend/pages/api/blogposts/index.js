@@ -1,72 +1,72 @@
 // pages/api/blog-posts/index.js
 
-import { authenticate } from '../../../middleware/auth';
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    await authenticate(req, res, async () => {
-      const { title, description, content, tags } = req.body;
+    // Create a new blog post
+    const { title, description, content, tags } = req.body;
 
-      if (!title || !description || !content) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
+    // Validate required fields
+    if (!title || !description || !content) {
+      return res.status(400).json({ error: 'Title, description, and content are required' });
+    }
 
-      try {
-        // Ensure tags is an array
-        const tagsArray = Array.isArray(tags) ? tags : [];
+    try {
+      // Handle tags: connect existing or create new ones
+      const tagOperations = tags?.map((tagName) => ({
+        where: { name: tagName },
+        create: { name: tagName },
+      })) || [];
 
-        // Handle tags: Find existing tags or create new ones
-        const tagConnectOrCreate = tagsArray.map((tag) => ({
-          where: { name: tag },
-          create: { name: tag },
-        }));
-
-        const blogPost = await prisma.blogPost.create({
-          data: {
-            title,
-            description,
-            content,
-            tags: {
-              connectOrCreate: tagConnectOrCreate,
-            },
-            authorId: req.user.id,
+      const newBlogPost = await prisma.blogPost.create({
+        data: {
+          title,
+          description,
+          content,
+          // Assigning to the default user with id: 1
+          author: { connect: { id: 1 } },
+          tags: {
+            connectOrCreate: tagOperations,
           },
-          include: {
-            tags: true,
-            author: { select: { id, firstName, lastName } },
-          },
-        });
-        return res.status(201).json(blogPost);
-      } catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: 'Internal server error' });
-      }
-    });
+        },
+        include: {
+          tags: true,
+          author: { select: { id, email, name } },
+        },
+      });
+
+      return res.status(201).json(newBlogPost);
+    } catch (error) {
+      console.error('Error creating blog post:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
   } else if (req.method === 'GET') {
-    // Handle GET request for listing blog posts
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || '';
-
-    const skip = (page - 1) * limit;
+    // Retrieve all blog posts with pagination and search
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
     try {
       const where = {
-        OR: [
-          { title: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
+        AND: [
+          { hidden: false }, // Exclude hidden blog posts
           {
-            tags: {
-              some: {
-                name: {
-                  contains: search,
-                  mode: 'insensitive',
+            OR: [
+              { title: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+              {
+                tags: {
+                  some: {
+                    name: {
+                      contains: search,
+                      mode: 'insensitive',
+                    },
+                  },
                 },
               },
-            },
+            ],
           },
         ],
       };
@@ -76,10 +76,10 @@ export default async function handler(req, res) {
         prisma.blogPost.findMany({
           where,
           skip,
-          take: limit,
+          take: parseInt(limit),
           orderBy: { createdAt: 'desc' },
           include: {
-            author: { select: { id, firstName, lastName } },
+            author: { select: { id, email, name } },
             tags: { select: { name: true } },
           },
         }),
@@ -89,12 +89,12 @@ export default async function handler(req, res) {
         data: blogPosts,
         meta: {
           total,
-          page,
-          lastPage: Math.ceil(total / limit),
+          page: parseInt(page),
+          lastPage: Math.ceil(total / parseInt(limit)),
         },
       });
     } catch (error) {
-      console.error(error);
+      console.error('Error retrieving blog posts:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   } else {
