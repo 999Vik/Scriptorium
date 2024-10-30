@@ -13,3 +13,39 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model BlogPost {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String
+  content     String
+  tags        Tag[]      @relation("BlogPostTags", references: [id])
+  author      User       @relation(fields: [authorId], references: [id])
+  authorId    Int
+  reports     Report[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Tag {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  blogPosts BlogPost[] @relation("BlogPostTags", references: [id])
+}
+
+model Report {
+  id          Int        @id @default(autoincrement())
+  reason      String
+  description String?
+  reporter    User       @relation(fields: [reporterId], references: [id])
+  reporterId  Int
+  blogPost    BlogPost?  @relation(fields: [blogPostId], references: [id])
+  blogPostId  Int?
+  comment     Comment?   @relation(fields: [commentId], references: [id])
+  commentId   Int?
+  createdAt   DateTime   @default(now())
+
+  @@check(
+    (blogPostId != null AND commentId == null) OR 
+    (blogPostId == null AND commentId != null)
+  )
+}
