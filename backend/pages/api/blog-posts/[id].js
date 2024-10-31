@@ -1,7 +1,8 @@
-// pages/api/blogposts/[id].js
+// pages/api/blog-posts/[id].js
 
+import { PrismaClient } from '@prisma/client';
 
-import prisma from '../../../lib/prisma';
+const prisma = new PrismaClient();
 
 export default async function handler(req, res) {
   const { id } = req.query;
@@ -18,13 +19,13 @@ export default async function handler(req, res) {
   }
 }
 
-// GET /api/blogposts/[id]
+// GET /api/blog-posts/[id]
 async function handleGET(req, res, id) {
   try {
     const blogPost = await prisma.blogPost.findUnique({
       where: { id: parseInt(id) },
       include: {
-        author: { select: { id: true, name: true, email: true } },
+        author: { select: { id: true, firstName: true, lastName: true, email: true } },
         tags: true,
       },
     });
@@ -36,11 +37,12 @@ async function handleGET(req, res, id) {
     return res.status(200).json(blogPost);
   } catch (error) {
     console.error('Error retrieving blog post:', error);
+    console.error('Error details:', JSON.stringify(error));
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
-// PUT /api/blogposts/[id]
+// PUT /api/blog-posts/[id]
 async function handlePUT(req, res, id) {
   const { title, description, content, tags } = req.body;
 
@@ -54,7 +56,7 @@ async function handlePUT(req, res, id) {
       return res.status(404).json({ error: 'Blog post not found' });
     }
 
-    // Handle tags
+    // Handle tags: clear existing tags and connect/create new ones
     const tagConnectOrCreate = tags?.map((tag) => ({
       where: { name: tag },
       create: { name: tag },
@@ -72,7 +74,7 @@ async function handlePUT(req, res, id) {
         },
       },
       include: {
-        author: { select: { id: true, name: true, email: true } },
+        author: { select: { id: true, firstName: true, lastName: true, email: true } },
         tags: true,
       },
     });
@@ -80,11 +82,12 @@ async function handlePUT(req, res, id) {
     return res.status(200).json(updatedPost);
   } catch (error) {
     console.error('Error updating blog post:', error);
+    console.error('Error details:', JSON.stringify(error));
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
-// DELETE /api/blogposts/[id]
+// DELETE /api/blog-posts/[id]
 async function handleDELETE(req, res, id) {
   try {
     const existingPost = await prisma.blogPost.findUnique({
@@ -104,6 +107,7 @@ async function handleDELETE(req, res, id) {
     return res.status(200).json({ message: 'Blog post hidden successfully' });
   } catch (error) {
     console.error('Error deleting blog post:', error);
+    console.error('Error details:', JSON.stringify(error));
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
