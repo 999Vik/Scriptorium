@@ -1,7 +1,8 @@
 // pages/api/reports/index.js
 
+import { PrismaClient } from '@prisma/client';
 
-import prisma from '../../../lib/prisma';
+const prisma = new PrismaClient();
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -16,16 +17,25 @@ export default async function handler(req, res) {
 
 // GET /api/reports?page=1&limit=10
 async function handleGET(req, res) {
-  const { page = 1, limit = 10 } = req.query;
-  const skip = (page - 1) * parseInt(limit);
-  const take = parseInt(limit);
+  let { page = 1, limit = 10 } = req.query;
+
+  // Parse and validate query parameters
+  page = parseInt(page);
+  limit = parseInt(limit);
+
+  if (isNaN(page) || isNaN(limit) || page < 1 || limit < 1) {
+    return res.status(400).json({ error: 'Invalid page or limit parameter' });
+  }
+
+  const skip = (page - 1) * limit;
+  const take = limit;
 
   try {
     const reports = await prisma.report.findMany({
       skip,
       take,
       include: {
-        reporter: { select: { id: true, name: true, email: true } },
+        reporter: { select: { id: true, firstName: true, lastName: true, email: true } },
         blogPost: true,
         comment: true,
       },
@@ -37,10 +47,11 @@ async function handleGET(req, res) {
 
     return res.status(200).json({
       data: reports,
-      meta: { total, totalPages, page: parseInt(page) },
+      meta: { total, totalPages, page },
     });
   } catch (error) {
     console.error('Error fetching reports:', error);
+    console.error('Error details:', JSON.stringify(error));
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -49,17 +60,49 @@ async function handleGET(req, res) {
 async function handlePOST(req, res) {
   const { reason, description, blogPostId, commentId, reporterId } = req.body;
 
-  if (!reason || (!blogPostId && !commentId) || !reporterId) {
+  // Validate required fields
+  if (!reason || !reporterId || (!blogPostId && !commentId)) {
     return res.status(400).json({
       error: 'Reason, reporterId, and either blogPostId or commentId are required',
     });
   }
 
   try {
+    // Check if reporter exists
+    const reporter = await prisma.user.findUnique({
+      where: { id: parseInt(reporterId) },
+    });
+
+    if (!reporter) {
+      return res.status(404).json({ error: 'Reporter not found' });
+    }
+
+    // If reporting a blog post, verify it exists and is not hidden
+    if (blogPostId) {
+      const blogPost = await prisma.blogPost.findUnique({
+        where: { id: parseInt(blogPostId) },
+      });
+
+      if (!blogPost || blogPost.hidden) {
+        return res.status(404).json({ error: 'Blog post not found' });
+      }
+    }
+
+    // If reporting a comment, verify it exists and is not hidden
+    if (commentId) {
+      const comment = await prisma.comment.findUnique({
+        where: { id: parseInt(commentId) },
+      });
+
+      if (!comment || comment.hidden) {
+        return res.status(404).json({ error: 'Comment not found' });
+      }
+    }
+
     const data = {
       reason,
       description,
-      reporter: { connect: { id: reporterId } },
+      reporter: { connect: { id: parseInt(reporterId) } },
     };
 
     if (blogPostId) {
@@ -73,7 +116,7 @@ async function handlePOST(req, res) {
     const report = await prisma.report.create({
       data,
       include: {
-        reporter: { select: { id: true, name: true, email: true } },
+        reporter: { select: { id: true, firstName: true, lastName: true, email: true } },
         blogPost: true,
         comment: true,
       },
@@ -82,6 +125,7 @@ async function handlePOST(req, res) {
     return res.status(201).json(report);
   } catch (error) {
     console.error('Error creating report:', error);
+    console.error('Error details:', JSON.stringify(error));
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
