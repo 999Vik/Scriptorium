@@ -9,6 +9,7 @@ export default async function handler(req, res) {
     // Handle GET request: Retrieve all blog posts
     try {
       const blogPosts = await prisma.blogPost.findMany({
+        where: { hidden: false },
         include: {
           author: {
             select: { id: true, firstName: true, lastName: true, email: true },
