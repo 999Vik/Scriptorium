@@ -1,9 +1,5 @@
 // pages/api/blog-posts/index.js
-
-import { PrismaClient } from '@prisma/client';
-
-// Instantiate Prisma Client directly
-const prisma = new PrismaClient();
+import prisma from '../../../lib/prisma';
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -20,9 +16,24 @@ export default async function handler(req, res) {
 async function handleGET(req, res) {
   console.log(`Received GET request at /api/blog-posts`);
 
+  const { title, description, content, authorId, page = 1, perPage = 10 } = req.query;
+
+  const skip = (page - 1) * perPage;
+  const take = parseInt(perPage, 10);
+
+  // Build the 'where' filter based on query parameters
+  const where = {
+    AND: [
+      title ? { title: { contains: title, mode: 'insensitive' } } : {},
+      description ? { description: { contains: description, mode: 'insensitive' } } : {},
+      content ? { content: { contains: content, mode: 'insensitive' } } : {},
+      authorId ? { authorId: parseInt(authorId, 10) } : {},
+    ],
+  };
+
   try {
     const blogPosts = await prisma.blogPost.findMany({
-      where: { hidden: false },
+      where,
       include: {
         author: {
           select: { id: true, firstName: true, lastName: true, email: true },
@@ -30,11 +41,11 @@ async function handleGET(req, res) {
         tags: true,
       },
       orderBy: { createdAt: 'desc' },
+      skip,
+      take,
     });
 
     console.log(`Fetched ${blogPosts.length} blog posts`);
-
-    // Log the fetched blog posts for debugging
     console.log('Blog Posts Data:', JSON.stringify(blogPosts, null, 2));
 
     // Ensure blogPosts is an array
@@ -57,7 +68,6 @@ async function handleGET(req, res) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
-
 
 // POST /api/blog-posts
 async function handlePOST(req, res) {
@@ -124,4 +134,3 @@ async function handlePOST(req, res) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
-
