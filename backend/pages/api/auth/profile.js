@@ -1,35 +1,41 @@
-import { requireAuth } from "../../../lib/auth";
+// pages/api/users/profile.js
+
 import prisma from "../../../lib/prisma";
+import { requireAuth } from "../../../utils/auth";
 
-const handler = async (req, res) => {
-    if (req.method !== "GET") {
-        return res.status(405).json({ error: `Method ${req.method} not allowed` });
-    }
+async function handler(req, res) {
+  const userId = req.user.id;
 
-    const { user } = req.user;
+  if (req.method === "GET") {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        firstName: true,
+        lastName: true,
+        email: true,
+        profilePicture: true,
+        phoneNumber: true,
+      },
+    });
 
-    try {
-        const profile = await prisma.profile.findUnique({
-            where: { userId: user.id },
-            select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                profilePicture: true,
-                phoneNumber: true,
-              },
-        });
+    res.status(200).json(user);
+  } else if (req.method === "PUT") {
+    const { firstName, lastName, profilePicture, phoneNumber } = req.body;
 
-        if (!profile) {
-            return res.status(404).json({ error: "Profile not found" });
-        }
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName,
+        lastName,
+        profilePicture,
+        phoneNumber,
+      },
+    });
 
-        res.status(200).json({ profile });
-    } catch (error) {
-        console.error("Error getting profile:", error);
-        res.status(500).json({ error: 'Failed to fetch user profile' });
-    }
+    res.status(200).json({ message: "Profile updated successfully" });
+  } else {
+    res.status(405).json({ error: "Method not allowed" });
+  }
 }
 
 export default requireAuth(handler);

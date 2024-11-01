@@ -1,11 +1,17 @@
+// pages/api/auth/signup.js
+
 import prisma from "../../../lib/prisma";
 import bcrypt from "bcrypt";
-import nextConnect from "next-connect";
-import multer from "../../../lib/multer";
 import jwt from "jsonwebtoken";
+import multer from "../../../lib/multer";
+import nextConnect from "next-connect";
+import fs from "fs";
+import path from "path";
 
 const handler = nextConnect({
   onError(error, req, res) {
+    // Removed file deletion to retain uploaded avatars even on errors
+    console.error("An error occurred:", error.message);
     res.status(500).json({ error: error.message });
   },
   onNoMatch(req, res) {
@@ -13,23 +19,39 @@ const handler = nextConnect({
   },
 });
 
-export default async function handler(req, res) {
-  if (req.method === "POST") {
+export const config = {
+  api: {
+    bodyParser: false, // Disable default body parser to handle multipart/form-data
+  },
+};
+
+handler.use(multer.single("avatar")); // Middleware to handle single file upload with field name 'avatar'
+
+handler.post(async (req, res) => {
+  try {
     const { firstName, lastName, email, password, phoneNumber } = req.body;
 
-    if (!firstName || !lastName || !email || !password || !phoneNumber) {
-      return res.status(400).json({ error: "Please fill all fields" });
+    // Validate required fields
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ error: "Please fill all required fields" });
     }
 
-    console.log(req.body);
-
+    // Check if user already exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ error: "User already exists" });
     }
 
+    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Handle avatar upload
+    let profilePicturePath = null;
+    if (req.file) {
+      profilePicturePath = `/avatars/${req.file.filename}`;
+    }
+
+    // Create the user
     const user = await prisma.user.create({
       data: {
         firstName,
@@ -37,11 +59,41 @@ export default async function handler(req, res) {
         email,
         password: hashedPassword,
         phoneNumber,
+        profilePicture: profilePicturePath,
       },
     });
 
-    res.status(201).json({ message: "User created successfully" });
-  } else {
-    res.status(405).json({ error: "Method not allowed" });
+    // Optionally, rename the avatar file to include user ID for consistency
+    if (req.file) {
+      const oldPath = req.file.path;
+      const newFilename = `user-${user.id}-${Date.now()}${path.extname(
+        req.file.originalname
+      )}`;
+      const newPath = path.join(
+        process.cwd(),
+        "public",
+        "avatars",
+        newFilename
+      );
+
+      fs.renameSync(oldPath, newPath); // Rename the file
+
+      // Update user with new profile picture path
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { profilePicture: `/avatars/${newFilename}` },
+      });
+    }
+
+    const token = jwt.sign({ userId: user.id }, process.env.ACCESS_TOKEN_SECRET, {
+      expiresIn: "1d",
+    });
+
+    res.status(201).json({ token });
+  } catch (error) {
+    console.error("Signup error:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
   }
-}
+});
+
+export default handler;
