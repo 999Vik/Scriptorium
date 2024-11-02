@@ -23,7 +23,7 @@ handler.get(async (req, res) => {
       };
     }
 
-    const templates = await prisma.template.findMany({
+    const templates = await prisma.codeTemplate.findMany({
       where,
       include: {
         author: {
@@ -40,4 +40,31 @@ handler.get(async (req, res) => {
   }
 });
 
-// handler.post(requireAuth, async (req, res) => {
+handler.post(requireAuth, async (req, res) => {
+  try {
+    const { title, explanation, code, tags, forkedFrom } = req.body;
+    const { user } = req;
+
+    if (!title || !code) {
+      return res.status(400).json({ error: "Please fill all required fields" });
+    }
+
+    const template = await prisma.codeTemplate.create({
+      data: {
+        title,
+        explanation,
+        code,
+        tags: { set: tags },
+        author: { connect: { id: user.id } },
+        forkedFromId: forkedFrom || null,
+      },
+    });
+
+    res.status(201).json(template);
+  } catch (error) {
+    console.error("Error creating template", error);
+    res.status(500).json({ error: "Error creating template" });
+  }
+});
+
+export default handler;

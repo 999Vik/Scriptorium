@@ -89,7 +89,11 @@ handler.post(async (req, res) => {
       expiresIn: "1d",
     });
 
-    res.status(201).json({ token });
+    const refresh_token = jwt.sign({ userId: user.id }, process.env.REFRESH_TOKEN_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.status(201).json({ token, refresh_token });
   } catch (error) {
     console.error("Signup error:", error.message);
     res.status(500).json({ error: "Internal Server Error" });

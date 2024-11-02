@@ -9,7 +9,7 @@ export async function authenticateToken(req, res) {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
     });

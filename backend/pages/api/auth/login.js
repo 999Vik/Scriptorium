@@ -5,6 +5,8 @@ import jwt from "jsonwebtoken";
 export default async function handler(req, res) {
   if (req.method === "POST") {
     const { email, password } = req.body;
+    console.log("email", email);
+    console.log("password, ", password);
 
     if (!email || !password) {
       return res.status(400).json({ error: "Please fill all fields" });
@@ -28,7 +30,15 @@ export default async function handler(req, res) {
       }
     );
 
-    res.status(200).json({ token });
+    const refreshToken = jwt.sign(
+      { userId: user.id },
+      process.env.REFRESH_TOKEN_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
+
+    res.status(200).json({ token, refreshToken });
   } else {
     res.status(405).json({ error: "Method not allowed" });
   }
