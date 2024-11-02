@@ -88,7 +88,7 @@ handler.delete(
         return res.status(403).json({ error: "Forbidden: Not the author" });
       }
 
-      await prisma.template.delete({
+      await prisma.codeTemplate.delete({
         where: { id: parseInt(id) },
       });
 

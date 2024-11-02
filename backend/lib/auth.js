@@ -37,7 +37,6 @@ export function requireAuth(handler) {
     }
 
     req.user = user;
-    req.body.userId = user.id; 
     return handler(req, res);
   };
 }
