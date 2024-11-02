@@ -55,6 +55,7 @@ model BlogPost {
   upvotes     Int            @default(0)
   downvotes   Int            @default(0)
   votes       Vote[]         @relation("BlogPostVotes")
+  
 }
 
 model Tag {
