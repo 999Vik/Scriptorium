@@ -40,7 +40,7 @@ handler.put(
     const { user } = req;
 
     try {
-      const template = await prisma.template.findUnique({
+      const template = await prisma.codeTemplate.findUnique({
         where: { id: parseInt(id) },
       });
 
@@ -52,7 +52,7 @@ handler.put(
         return res.status(403).json({ error: "Forbidden: Not the author" });
       }
 
-      const updatedTemplate = await prisma.template.update({
+      const updatedTemplate = await prisma.codeTemplate.update({
         where: { id: parseInt(id) },
         data: {
           title,
@@ -76,7 +76,7 @@ handler.delete(
     const { user } = req;
 
     try {
-      const template = await prisma.template.findUnique({
+      const template = await prisma.codeTemplate.findUnique({
         where: { id: parseInt(id) },
       });
 

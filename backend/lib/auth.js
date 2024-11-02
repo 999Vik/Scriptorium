@@ -1,11 +1,15 @@
 import jwt from "jsonwebtoken";
 
 export async function authenticateToken(req, res) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const authHeader = req.headers["authorization"];
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const token = authHeader.split(" ")[1];
 
   if (!token) {
-    return { error: 'Unauthorized: No token provided' };
+    return { error: "Unauthorized: No token provided" };
   }
 
   try {
@@ -15,12 +19,12 @@ export async function authenticateToken(req, res) {
     });
 
     if (!user) {
-      return { error: 'Unauthorized: User not found' };
+      return { error: "Unauthorized: User not found" };
     }
 
     return { user };
   } catch (err) {
-    return { error: 'Unauthorized: Invalid token' };
+    return { error: "Unauthorized: Invalid token" };
   }
 }
 
@@ -34,7 +38,7 @@ export function requireAuth(handler) {
 
     req.user = user;
     return handler(req, res);
-  }
+  };
 }
 
 export function requireAdmin(handler) {
@@ -46,10 +50,12 @@ export function requireAdmin(handler) {
     }
 
     if (!user.isAdmin) {
-      return res.status(403).json({ error: 'Forbidden: Admin access required' });
+      return res
+        .status(403)
+        .json({ error: "Forbidden: Admin access required" });
     }
 
     req.user = user;
     return handler(req, res);
-  }
+  };
 }

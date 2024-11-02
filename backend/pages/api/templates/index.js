@@ -40,31 +40,54 @@ handler.get(async (req, res) => {
   }
 });
 
-handler.post(requireAuth, async (req, res) => {
-  try {
-    const { title, explanation, code, tags, forkedFrom } = req.body;
-    const { user } = req;
+handler.post(
+  requireAuth(async (req, res) => {
+    try {
+      const { title, explanation, language, code, tags } = req.body;
+      const { user } = req;
 
-    if (!title || !code) {
-      return res.status(400).json({ error: "Please fill all required fields" });
+      if (!title || !code || !language || !explanation) {
+        return res.status(400).json({
+          error: "Please fill all required fields: ",
+        });
+      }
+
+      const tagsArray = Array.isArray(tags) ? tags : [tags];
+
+      const processedTags = await Promise.all(
+        tagsArray.map(async (tagName) => {
+          const formattedTag = tagName.trim().toLowerCase();
+          let tag = await prisma.tag.findUnique({
+            where: { name: formattedTag },
+          });
+          if (!tag) {
+            tag = await prisma.tag.create({
+              data: { name: formattedTag },
+            });
+          }
+          return { id: tag.id };
+        })
+      );
+
+      const template = await prisma.codeTemplate.create({
+        data: {
+          title,
+          explanation,
+          code,
+          language,
+          tags: {
+            connect: processedTags,
+          },
+          author: { connect: { id: user.id } },
+        },
+      });
+
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating template", error);
+      res.status(500).json({ error: "Error creating template" });
     }
-
-    const template = await prisma.codeTemplate.create({
-      data: {
-        title,
-        explanation,
-        code,
-        tags: { set: tags },
-        author: { connect: { id: user.id } },
-        forkedFromId: forkedFrom || null,
-      },
-    });
-
-    res.status(201).json(template);
-  } catch (error) {
-    console.error("Error creating template", error);
-    res.status(500).json({ error: "Error creating template" });
-  }
-});
+  })
+);
 
 export default handler;
