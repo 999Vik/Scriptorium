@@ -38,6 +38,9 @@ handler.put(
     const { id } = req.query;
     const { title, explanation, code, tags } = req.body;
     const { user } = req;
+    const user_id = user.id;
+
+    console.log("user_id", user_id);
 
     try {
       const template = await prisma.codeTemplate.findUnique({
