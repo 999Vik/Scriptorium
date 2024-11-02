@@ -10,7 +10,6 @@ import path from "path";
 
 const handler = nextConnect({
   onError(error, req, res) {
-    // Removed file deletion to retain uploaded avatars even on errors
     console.error("An error occurred:", error.message);
     res.status(500).json({ error: error.message });
   },
@@ -21,11 +20,11 @@ const handler = nextConnect({
 
 export const config = {
   api: {
-    bodyParser: false, // Disable default body parser to handle multipart/form-data
+    bodyParser: false,
   },
 };
 
-handler.use(multer.single("avatar")); // Middleware to handle single file upload with field name 'avatar'
+handler.use(multer.single("avatar"));
 
 handler.post(async (req, res) => {
   try {

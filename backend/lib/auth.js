@@ -33,6 +33,7 @@ export function requireAuth(handler) {
     }
 
     req.user = user;
+    req.body.userId = user.id; 
     return handler(req, res);
   }
 }
@@ -50,6 +51,7 @@ export function requireAdmin(handler) {
     }
 
     req.user = user;
+    req.body.userId = user.id; 
     return handler(req, res);
   }
 }
