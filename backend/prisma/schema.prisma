@@ -17,7 +17,6 @@ model User {
   phoneNumber    String?
   isAdmin        Boolean        @default(false)
   templates      CodeTemplate[] @relation("UserTemplates")
-  forkedTemplates CodeTemplate[] @relation("UserForkedTemplates")
   blogPosts      BlogPost[]
   comments       Comment[]
   reports        Report[]       @relation("UserReports")
@@ -25,21 +24,19 @@ model User {
 }
 
 model CodeTemplate {
-  id          Int            @id @default(autoincrement())
-  title       String
-  explanation String
-  code        String
-  language    String
-  createdAt   DateTime       @default(now())
-  author      User           @relation(fields: [authorId], references: [id])
-  authorId    Int
+  id            Int            @id @default(autoincrement())
+  title         String
+  explanation   String
+  code          String
+  language      String
+  createdAt     DateTime       @default(now())
+  author        User           @relation("UserTemplates", fields: [authorId], references: [id])
+  authorId      Int
   forkedFrom    CodeTemplate?  @relation("TemplateForks", fields: [forkedFromId], references: [id])
   forkedFromId  Int?
-  forks       CodeTemplate[] @relation("Forks")
-  original    CodeTemplate?  @relation("Forks", fields: [originalId], references: [id])
-  originalId  Int?
-  blogPosts   BlogPost[]
-  tags        Tag[]          @relation("CodeTemplateTags")
+  forks         CodeTemplate[] @relation("TemplateForks")
+  blogPosts     BlogPost[]
+  tags          Tag[]          @relation("CodeTemplateTags")
 }
 
 model BlogPost {
