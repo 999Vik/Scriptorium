@@ -30,27 +30,22 @@ handler.post(async (req, res) => {
   try {
     const { firstName, lastName, email, password, phoneNumber } = req.body;
 
-    // Validate required fields
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({ error: "Please fill all required fields" });
     }
 
-    // Check if user already exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ error: "User already exists" });
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Handle avatar upload
     let profilePicturePath = null;
     if (req.file) {
       profilePicturePath = `/avatars/${req.file.filename}`;
     }
 
-    // Create the user
     const user = await prisma.user.create({
       data: {
         firstName,
@@ -62,7 +57,6 @@ handler.post(async (req, res) => {
       },
     });
 
-    // Optionally, rename the avatar file to include user ID for consistency
     if (req.file) {
       const oldPath = req.file.path;
       const newFilename = `user-${user.id}-${Date.now()}${path.extname(
@@ -75,22 +69,29 @@ handler.post(async (req, res) => {
         newFilename
       );
 
-      fs.renameSync(oldPath, newPath); // Rename the file
+      fs.renameSync(oldPath, newPath);
 
-      // Update user with new profile picture path
       await prisma.user.update({
         where: { id: user.id },
         data: { profilePicture: `/avatars/${newFilename}` },
       });
     }
 
-    const token = jwt.sign({ userId: user.id }, process.env.ACCESS_TOKEN_SECRET, {
-      expiresIn: "1d",
-    });
+    const token = jwt.sign(
+      { userId: user.id },
+      process.env.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: "1d",
+      }
+    );
 
-    const refresh_token = jwt.sign({ userId: user.id }, process.env.REFRESH_TOKEN_SECRET, {
-      expiresIn: "7d",
-    });
+    const refresh_token = jwt.sign(
+      { userId: user.id },
+      process.env.REFRESH_TOKEN_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
 
     res.status(201).json({ token, refresh_token });
   } catch (error) {

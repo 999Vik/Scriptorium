@@ -6,7 +6,7 @@ import { requireAuth } from "../../../utils/auth";
 async function handler(req, res) {
   const userId = req.user.id;
 
-  if (req.method === "GET") {
+  if (req.method === "PUT") {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
